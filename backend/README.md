@@ -127,10 +127,19 @@ no transcript. Produces `background_noise_present / _type / _severity`.
 - Weights download once from the HF Hub (~330MB, cached in `~/.cache/huggingface`). Only
   public model artifacts are fetched; confidential audio never leaves local infra.
 
-Calibrated against `docs/labels.csv`: `background_noise_present` 3/3, `severity` 2/2 (both
-medium), `type` — call_002 → "television" (GT "TV") ✓, call_003 → "crunch" (GT "sharp
-static", no clean AudioSet static class). Severity bands are fit to only 2 positive
-examples — the least reliable field (see `app/config.py`).
+**Hybrid detection.** AST is an *event* classifier — great at discrete sources (TV, music,
+typing) but blind to *additive broadband noise* (static/hiss/crackle), which is a
+signal-level phenomenon. So a DSP **static detector** (`static_noise.py`) runs alongside
+AST: it measures the spectral flatness of the noise-floor frames (broadband ⇒ static) plus
+impulsive crackle activity. When static is detected, it takes the reported `type` unless AST
+found a strong discrete event — so a weak AST guess (e.g. a spurious "crunch") can't
+override real static. This is the deterministic-features + learned-model hybrid the spec
+rewards.
+
+Calibrated against `docs/labels.csv`: `background_noise_present` 3/3, `severity` 3/3, and
+`type` now semantically 3/3 — call_001 "" ✓, call_002 "TV" ✓, call_003 "static" ✓ (AST
+alone had mislabelled this "crunch"). The static detector is validated on one positive
+example; severity bands remain lightly-calibrated (see `app/config.py`).
 
 **Latency:** ~34× realtime on CPU (warm model), ≈1.7s compute per audio-minute.
 

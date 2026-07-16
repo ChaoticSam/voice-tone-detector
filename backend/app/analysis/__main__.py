@@ -38,7 +38,8 @@ def main(argv: list[str]) -> int:
             f"{str(n.background_noise_present):>6}  {n.background_noise_type:<16}  "
             f"{n.background_noise_severity:<8}"
         )
-        print(f"{'':<{name_w}}  noise top: {[(l, round(p, 3)) for l, p in n.top_classes[:4]]}")
+        static_note = f" [static sfm={n.static_sfm}]" if n.static_detected else ""
+        print(f"{'':<{name_w}}  noise top: {[(l, round(p, 3)) for l, p in n.top_classes[:4]]}{static_note}")
     return 0
 
 

@@ -71,3 +71,24 @@ NOISE_PRESENT_THRESHOLD = 0.10
 # classifier probability only loosely proxies. Revisit with more labeled data.
 NOISE_SEVERITY_MEDIUM_PROB = 0.13
 NOISE_SEVERITY_HIGH_PROB = 0.45
+
+
+# --- DSP static / broadband-noise detector (hybrid with AST) -----------------
+# AST is an event classifier and misses additive broadband noise (hiss/static/crackle),
+# which is a signal-level phenomenon best caught with DSP -- analogous to clipping/silence.
+# Static shows up as a flat (broadband) noise floor + impulsive crackle bursts.
+# Thresholds separate the real files: SFM(0-8k) of the noise floor was
+#   call_001 (clean) 0.020 | call_002 (TV) 0.031 | call_003 (static) 0.055.
+# Validated on ONE positive example (call_003) -- principled features, but revisit with
+# more static-labeled data before trusting the exact thresholds.
+STATIC_FRAME_MS = 50
+STATIC_ACTIVE_PERCENTILE = 95
+STATIC_FLOOR_LO_FRAC = 0.005     # noise-floor frames: quiet but not digital silence
+STATIC_FLOOR_HI_FRAC = 0.05
+STATIC_MIN_FLOOR_FRAMES = 10     # need enough floor frames to judge
+STATIC_SFM_BAND_HZ = 8000        # measure flatness in the meaningful band, not empty HF
+STATIC_SFM_THRESHOLD = 0.04      # noise-floor flatness above this => broadband static
+STATIC_SEVERITY_MEDIUM_SFM = 0.045
+STATIC_SEVERITY_HIGH_SFM = 0.10
+# An AST discrete event this strong overrides a static finding for the reported type.
+STATIC_STRONG_EVENT_PROB = 0.30

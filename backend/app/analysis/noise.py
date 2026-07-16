@@ -26,6 +26,7 @@ from pydantic import BaseModel
 
 from app.analysis.audioset_taxonomy import is_excluded, noise_type_for
 from app.analysis.model_cache import load_ast
+from app.analysis.static_noise import detect_static
 from app.audio.preprocessing import Preprocessed, chunk_waveform
 from app.config import (
     AST_MODEL_NAME,
@@ -33,6 +34,7 @@ from app.config import (
     NOISE_SEVERITY_HIGH_PROB,
     NOISE_SEVERITY_MEDIUM_PROB,
     NOISE_WINDOW_SEC,
+    STATIC_STRONG_EVENT_PROB,
 )
 
 Severity = Literal["none", "low", "medium", "high"]
@@ -42,7 +44,9 @@ class NoiseResult(BaseModel):
     background_noise_present: bool
     background_noise_type: str                    # "" when not present
     background_noise_severity: Severity
-    top_classes: list[tuple[str, float]]          # top non-excluded (label, prob) for debug
+    top_classes: list[tuple[str, float]]          # top non-excluded AST (label, prob) for debug
+    static_detected: bool = False                 # DSP broadband-static detector fired
+    static_sfm: float = 0.0                       # noise-floor spectral flatness (debug)
 
 
 def _max_class_probs(pre: Preprocessed) -> dict[str, float]:
@@ -75,7 +79,8 @@ def _severity_for(prob: float) -> Severity:
 
 
 def detect_noise(pre: Preprocessed) -> NoiseResult:
-    """Detect background noise in a preprocessed clip."""
+    """Detect background noise in a preprocessed clip (hybrid AST events + DSP static)."""
+    # AST: discrete acoustic events.
     probs = _max_class_probs(pre)
     ranked = sorted(
         ((label, p) for label, p in probs.items() if not is_excluded(label)),
@@ -83,19 +88,36 @@ def detect_noise(pre: Preprocessed) -> NoiseResult:
         reverse=True,
     )
     top = ranked[:5]
+    ast_present = bool(ranked) and ranked[0][1] >= NOISE_PRESENT_THRESHOLD
+    ast_label, ast_prob = ranked[0] if ranked else ("", 0.0)
 
-    if not ranked or ranked[0][1] < NOISE_PRESENT_THRESHOLD:
+    # DSP: additive broadband static/hiss/crackle (which AST can't reliably classify).
+    static = detect_static(pre.signal_original, pre.original_sample_rate)
+
+    present = ast_present or static.present
+    if not present:
         return NoiseResult(
             background_noise_present=False,
             background_noise_type="",
             background_noise_severity="none",
             top_classes=top,
+            static_detected=static.present,
+            static_sfm=static.sfm_floor,
         )
 
-    top_label, top_prob = ranked[0]
+    # Static wins the reported type unless AST found a strong discrete event: AST cannot
+    # characterize broadband noise, so a weak AST guess (e.g. spurious "crunch") should not
+    # override a real static finding.
+    if static.present and (not ast_present or ast_prob < STATIC_STRONG_EVENT_PROB):
+        noise_type, severity = "static", static.severity
+    else:
+        noise_type, severity = noise_type_for(ast_label), _severity_for(ast_prob)
+
     return NoiseResult(
         background_noise_present=True,
-        background_noise_type=noise_type_for(top_label),
-        background_noise_severity=_severity_for(top_prob),
+        background_noise_type=noise_type,
+        background_noise_severity=severity,
         top_classes=top,
+        static_detected=static.present,
+        static_sfm=static.sfm_floor,
     )
