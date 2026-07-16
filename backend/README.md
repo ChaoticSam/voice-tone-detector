@@ -2,7 +2,7 @@
 
 Stepwise implementation of AutoAce's voice-tone + background-noise analysis pipeline.
 
-**Current status:** Stage 2 — audio preprocessing.
+**Current status:** Stage 3 — DSP analysis (audio quality + silence).
 
 ## Setup
 
@@ -73,4 +73,31 @@ pre.waveform_16k          # np.float32 mono @ 16 kHz -> feed to models
 pre.features.clipping_ratio
 # chunk_waveform is a reusable inference-windowing helper for the model services:
 windows = chunk_waveform(pre.waveform_16k, pre.sample_rate, window_sec=5)
+```
+
+## DSP analysis (stage 3)
+
+Model-free, deterministic services that consume the preprocessed package:
+
+- **audio_quality** (`clear | slightly_impaired | severely_impaired`) — worst-case over
+  clipping, a rough percentile SNR estimate, and loudness. Band-limiting (normal for phone
+  audio) is deliberately *not* treated as impairment. Thresholds are principled but
+  **uncalibrated** pending ground-truth labels.
+- **long_silence_present** — energy-based dead-air detection with an adaptive threshold
+  (relative to each file's own active level, so quiet calls work). A VAD is intentionally
+  not used here; Silero is introduced later for true speech regions (overlap/speaking-rate).
+
+```bash
+# CLI — runs both services (preprocess -> quality + silence)
+PYTHONPATH=. python -m app.analysis ../audio_files/*.ogg
+```
+
+```python
+from app.analysis.audio_quality import assess_quality
+from app.analysis.silence import detect_silence
+from app.audio.preprocessing import preprocess
+
+pre = preprocess("call_001.ogg")
+q = assess_quality(pre)                                   # -> audio_quality, snr_db, reasons
+s = detect_silence(pre.signal_original, pre.original_sample_rate)  # -> long_silence_present
 ```
