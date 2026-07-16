@@ -4,6 +4,16 @@ Thresholds and constants live here so every stage (validation, preprocessing,
 analysis) reads from one source of truth.
 """
 
+# Load secrets (HF_TOKEN, OPENAI_API_KEY) from backend/.env if present. .env is gitignored;
+# never commit it. No-op if python-dotenv or the file is absent.
+try:
+    from dotenv import load_dotenv as _load_dotenv
+    from pathlib import Path as _Path
+
+    _load_dotenv(_Path(__file__).resolve().parents[1] / ".env")
+except Exception:  # noqa: BLE001 - dotenv optional; env vars may be set another way
+    pass
+
 # Container formats we accept. The provided samples are .ogg; the hidden test set
 # may add mp3/m4a. soundfile handles wav/flac/ogg natively; ffmpeg covers the rest.
 SUPPORTED_EXTENSIONS = frozenset({".wav", ".mp3", ".ogg", ".flac", ".m4a"})
@@ -121,3 +131,21 @@ VALENCE_NEUTRAL_LO = 0.40     # [NEUTRAL_LO, SATISFIED) -> neutral; < -> negativ
 # frustrated/distressed labeled examples.
 AROUSAL_UPSET = 0.60
 AROUSAL_DISTRESSED = 0.75
+
+
+# --- Speaker diarization + overlap (stage 6, WhisperX + pyannote) -------------
+# Self-hosted; audio stays local. HF_TOKEN (from .env) gates the pyannote pipeline.
+# ASR size for WhisperX transcription; small is the cost/quality sweet spot.
+WHISPER_MODEL_SIZE = "small"
+WHISPER_COMPUTE_TYPE = "int8"
+# AI-receptionist calls are 2-party (bot + one caller); hint the diarizer to avoid
+# over-segmenting the bot into multiple speakers. Set None for fully automatic.
+DIARIZATION_MAX_SPEAKERS = 2
+# A single cross-speaker overlap must exceed this (s) to count toward the total.
+DIARIZATION_OVERLAP_TOLERANCE_SEC = 0.2
+# speaker_overlap_present requires total overlap >= this. The spec says overlap must be
+# "enough to affect understanding" -- brief boundary blips (~0.3s) don't qualify.
+# Calibrated to the 3 labels: call_001 0.35s (False), call_002 0.98s, call_003 2.35s (True).
+DIARIZATION_MIN_OVERLAP_SEC = 0.5
+# Turns shorter than this (s) are ignored for role assignment / overlap (diarizer noise).
+DIARIZATION_MIN_TURN_SEC = 0.3

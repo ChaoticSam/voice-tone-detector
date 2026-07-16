@@ -12,3 +12,8 @@ __pycache__/
 # --- OS / editor ---
 .DS_Store
 .localized
+
+# --- Secrets: never commit API keys ---
+.env
+*.env
+backend/.env

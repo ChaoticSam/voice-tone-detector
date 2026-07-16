@@ -2,7 +2,7 @@
 
 Stepwise implementation of AutoAce's voice-tone + background-noise analysis pipeline.
 
-**Current status:** Stage 5a — emotion (acoustic channel).
+**Current status:** Stage 6 — speaker diarization + overlap.
 
 ## Setup
 
@@ -185,3 +185,49 @@ from app.analysis.emotion import detect_emotion
 e = detect_emotion(pre)   # -> emotional_tone (provisional), emotional_intensity,
                           #    arousal, valence, dominance, per_chunk
 ```
+
+## Speaker diarization + overlap (stage 6)
+
+**Root-cause fix.** These are AI-receptionist calls — a TTS agent ("Erica") plus the human
+customer. Analyzing the whole call mixes both speakers, which broke emotion (the bot's flat
+voice dilutes the acoustics; its lines mislead the transcript). This stage separates them.
+
+`diarization.py` uses **WhisperX** (faster-whisper + word alignment + pyannote
+`speaker-diarization-community-1`), self-hosted — audio never leaves local infra. pyannote is
+gated: set `HF_TOKEN` in `.env` and accept the model terms once on Hugging Face.
+
+Produces:
+- **`speaker_overlap_present`** — a required output field. Overlap must be *meaningful*
+  ("enough to affect understanding" per the spec): total cross-speaker overlap ≥ 0.5s, so
+  brief boundary blips don't count.
+- **agent vs customer roles** — agent = speaker of the scripted greeting ("how can I help",
+  "I'm Erica", "cómo puedo ayudar"), which is far more robust than "who spoke first" (a
+  stray caller utterance can precede the greeting). Customer = the most-talking other speaker.
+- **customer-only transcript + time-ranges** — consumed by the *later* emotion stage so it
+  analyzes the customer only.
+
+2-party is hinted (`max_speakers=2`) to stop the diarizer over-segmenting the bot.
+
+**Calibration vs `docs/labels.csv`: `speaker_overlap_present` 3/3** (call_001 0.35s→False,
+call_002 0.98s→True, call_003 2.35s→True). Roles verified: e.g. call_003's customer
+transcript is *"I want an appointment… I need a checkup"* — the bot's "we're closed" lines
+are correctly excluded, which is exactly the isolation the emotion stage needs.
+
+**Latency:** ~1× realtime on CPU (diarization is the heaviest stage; call_003's 172s took
+~165s). Much faster on GPU.
+
+```bash
+PYTHONPATH=. python -m app.analysis.diarize_cli ../audio_files/*.ogg
+```
+
+```python
+from app.analysis.diarization import diarize
+from app.audio.preprocessing import preprocess
+d = diarize(preprocess("call_003.ogg"))
+d.speaker_overlap_present   # required field
+d.customer_transcript       # human-only text, for the emotion stage
+d.customer_ranges           # customer turn [start,end] time-ranges
+```
+
+**Next:** wire `customer_transcript` + `customer_ranges` into the emotion stage (run acoustic
++ lexical on the customer only) — the hypothesis this stage sets up.
