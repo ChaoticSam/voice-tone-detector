@@ -2,7 +2,7 @@
 
 Stepwise implementation of AutoAce's voice-tone + background-noise analysis pipeline.
 
-**Current status:** Stage 4 — background noise detection (AST / AudioSet).
+**Current status:** Stage 5a — emotion (acoustic channel).
 
 ## Setup
 
@@ -151,4 +151,37 @@ PYTHONPATH=. python -m app.analysis ../audio_files/*.ogg
 ```python
 from app.analysis.noise import detect_noise
 n = detect_noise(pre)   # -> background_noise_present / _type / _severity, top_classes
+```
+
+## Emotion — acoustic channel (stage 5a)
+
+Emotion has two channels: **prosodic** ("how it was said") and **lexical** ("what was
+said"). This stage builds the prosodic channel with a dimensional SER model
+(`audeering/wav2vec2-large-robust-12-ft-emotion-msp-dim` → arousal/valence/dominance).
+Arousal → `emotional_intensity`; valence → `emotional_tone`. It returns a **provisional**
+verdict plus the raw dimensions, so stage 5b (Whisper transcript + LLM) can *fuse* rather
+than override. Neutral is kept independent of arousal, so a loud-but-neutral speaker isn't
+miscalled upset (respects the spec's loudness caveat). License CC-BY-NC-SA (non-commercial,
+disclosed; one-file swap). ~1.2GB weights, cached locally; audio stays local.
+
+**Chunking** (your context-loss concern, answered with data): a sweep over
+{20,15,10,8,5,3}s × {0, 50%} overlap × {mean, peak} picked **10s / no overlap / mean** —
+closest to the model's ~8-11s training regime, stable (peak-salience grabbed outlier
+chunks), cheapest.
+
+**Key empirical finding (calibration vs `docs/labels.csv`):**
+- `emotional_intensity` — **3/3** (call_001 arousal 0.68 → high; 002/003 ~0.58 → medium).
+- `emotional_tone` — **acoustically unreliable: valence is compressed (~0.50-0.57) and
+  does NOT separate satisfied/neutral/upset** — the ordering is even anti-correlated
+  (satisfied call_003 has the *lowest* valence). No threshold can fit the labels, so tone
+  thresholds are principled (not overfit) and all three currently read "neutral". This is
+  the concrete, measured proof that tone needs the **lexical channel** — the frustration in
+  "I've called five times already" is in the *words*, not the prosody. Owned by stage 5b.
+
+**Latency:** ~36× realtime on CPU (warm model), ≈1.7s compute per audio-minute.
+
+```python
+from app.analysis.emotion import detect_emotion
+e = detect_emotion(pre)   # -> emotional_tone (provisional), emotional_intensity,
+                          #    arousal, valence, dominance, per_chunk
 ```
