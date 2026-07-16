@@ -133,11 +133,14 @@ AROUSAL_UPSET = 0.60
 AROUSAL_DISTRESSED = 0.75
 
 
-# --- Speaker diarization + overlap (stage 6, WhisperX + pyannote) -------------
-# Self-hosted; audio stays local. HF_TOKEN (from .env) gates the pyannote pipeline.
-# ASR size for WhisperX transcription; small is the cost/quality sweet spot.
+# --- Transcription (shared: WhisperX diarization + faster-whisper lexical) ----
+# Self-hosted; audio never leaves local infra. `small` int8 is the cost/quality sweet
+# spot (we settled on it over large-v3 for cost/latency; the transcript is a feature for
+# fusion, not a scored output). HF_TOKEN (.env) gates WhisperX's pyannote diarization.
 WHISPER_MODEL_SIZE = "small"
 WHISPER_COMPUTE_TYPE = "int8"
+
+# --- Speaker diarization + overlap (stage 6, WhisperX + pyannote) -------------
 # AI-receptionist calls are 2-party (bot + one caller); hint the diarizer to avoid
 # over-segmenting the bot into multiple speakers. Set None for fully automatic.
 DIARIZATION_MAX_SPEAKERS = 2
@@ -149,3 +152,12 @@ DIARIZATION_OVERLAP_TOLERANCE_SEC = 0.2
 DIARIZATION_MIN_OVERLAP_SEC = 0.5
 # Turns shorter than this (s) are ignored for role assignment / overlap (diarizer noise).
 DIARIZATION_MIN_TURN_SEC = 0.3
+
+# --- Emotion: lexical channel + fusion (stage 5b) ----------------------------
+# Lexical-fusion LLM. Provider abstraction (see llm_client.py) — one-line swap.
+# gpt-4.1-mini: ~$0.40/$1.60 per 1M. The transcript (derived text) leaves our infra to
+# the provider -> DISCLOSE per trial §11.
+LLM_PROVIDER = "openai"
+LLM_MODEL = "gpt-4.1-mini"
+# Confidence when the LLM call fails / no API key: fall back to the acoustic verdict.
+ACOUSTIC_FALLBACK_CONFIDENCE = 0.45
