@@ -92,3 +92,32 @@ STATIC_SEVERITY_MEDIUM_SFM = 0.045
 STATIC_SEVERITY_HIGH_SFM = 0.10
 # An AST discrete event this strong overrides a static finding for the reported type.
 STATIC_STRONG_EVENT_PROB = 0.30
+
+
+# --- Emotion: acoustic channel (stage 5a, dimensional SER) -------------------
+# audeering wav2vec2 dimensional model -> arousal/dominance/valence (~0..1).
+EMOTION_MODEL_NAME = "audeering/wav2vec2-large-robust-12-ft-emotion-msp-dim"
+# Chunk config chosen by the sweep (scratchpad experiment): 10s / no overlap / mean.
+# 10s is closest to the model's ~8-11s (MSP-Podcast) training regime among the stable
+# options; mean aggregation is stable (peak-salience grabbed outlier chunks); overlap
+# barely changed the mean, so 0.0 is kept for lower cost.
+EMOTION_WINDOW_SEC = 10.0
+EMOTION_WINDOW_OVERLAP = 0.0
+
+# Intensity from arousal. Calibrated to the 3 labels (10s/mean arousal):
+#   call_001 0.68 (high) | call_002 0.59, call_003 0.58 (medium).
+INTENSITY_HIGH_AROUSAL = 0.63
+INTENSITY_MED_AROUSAL = 0.45
+
+# Tone from valence. IMPORTANT: on the 3 real files acoustic valence is compressed
+# (~0.50-0.57) and does NOT separate satisfied/neutral/upset -- the ordering is even
+# ANTI-correlated (satisfied call_003 has the LOWEST valence). No threshold can fit the
+# labels, so these are PRINCIPLED values, deliberately NOT tuned to force a pass. Acoustic
+# tone is therefore unreliable by itself; the lexical channel (stage 5b) owns tone. This
+# empirically motivates 5b -- see the memo.
+VALENCE_SATISFIED = 0.60      # >= -> positive/satisfied
+VALENCE_NEUTRAL_LO = 0.40     # [NEUTRAL_LO, SATISFIED) -> neutral; < -> negative
+# Within negative valence, arousal separates the negatives. UNVALIDATED -- we have no
+# frustrated/distressed labeled examples.
+AROUSAL_UPSET = 0.60
+AROUSAL_DISTRESSED = 0.75
