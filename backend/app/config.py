@@ -4,6 +4,16 @@ Thresholds and constants live here so every stage (validation, preprocessing,
 analysis) reads from one source of truth.
 """
 
+# Load secrets (e.g. OPENAI_API_KEY) from backend/.env if present. .env is gitignored;
+# never commit it. No-op if python-dotenv or the file is absent.
+try:
+    from dotenv import load_dotenv as _load_dotenv
+    from pathlib import Path as _Path
+
+    _load_dotenv(_Path(__file__).resolve().parents[1] / ".env")
+except Exception:  # noqa: BLE001 - dotenv optional; env vars may be set another way
+    pass
+
 # Container formats we accept. The provided samples are .ogg; the hidden test set
 # may add mp3/m4a. soundfile handles wav/flac/ogg natively; ffmpeg covers the rest.
 SUPPORTED_EXTENSIONS = frozenset({".wav", ".mp3", ".ogg", ".flac", ".m4a"})
@@ -121,3 +131,19 @@ VALENCE_NEUTRAL_LO = 0.40     # [NEUTRAL_LO, SATISFIED) -> neutral; < -> negativ
 # frustrated/distressed labeled examples.
 AROUSAL_UPSET = 0.60
 AROUSAL_DISTRESSED = 0.75
+
+
+# --- Emotion: lexical channel + fusion (stage 5b) ----------------------------
+# Transcription: self-hosted faster-whisper. Audio never leaves local infra.
+# `small` int8 is the cost/quality sweet spot; the transcript is a fusion feature,
+# not a scored output, so "good enough to read intent" suffices.
+WHISPER_MODEL_SIZE = "large-v3"
+WHISPER_COMPUTE_TYPE = "int8"
+
+# Lexical-fusion LLM. Provider abstraction (see llm_client.py) — one-line swap.
+# gpt-4o-mini: ~$0.15/$0.60 per 1M -> ~$0.00017/audio-min. The transcript (derived
+# text) leaves our infra to the provider -> DISCLOSE per trial §11.
+LLM_PROVIDER = "openai"
+LLM_MODEL = "gpt-4.1-mini"
+# Confidence when the LLM call fails / no API key: fall back to the acoustic verdict.
+ACOUSTIC_FALLBACK_CONFIDENCE = 0.45
