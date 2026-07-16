@@ -9,8 +9,10 @@ import sys
 
 from app.analysis.audio_quality import assess_quality
 from app.analysis.emotion import detect_emotion
+from app.analysis.emotion_fusion import fuse_emotion
 from app.analysis.noise import detect_noise
 from app.analysis.silence import detect_silence
+from app.analysis.transcription import transcribe
 from app.audio.preprocessing import PreprocessError, preprocess_batch
 
 
@@ -32,17 +34,23 @@ def main(argv: list[str]) -> int:
             print(f"{r.name:<{name_w}}  ERROR: {r.error}")
             continue
         e = detect_emotion(r)
+        tr = transcribe(r)
+        fused = fuse_emotion(e, tr)
         q = assess_quality(r)
         s = detect_silence(r.signal_original, r.original_sample_rate)
         n = detect_noise(r)
         print(
-            f"{r.name:<{name_w}}  {e.emotional_tone:<11}{e.emotional_intensity:<8}"
+            f"{r.name:<{name_w}}  {fused.emotional_tone:<11}{fused.emotional_intensity:<8}"
             f"{q.audio_quality:<17}  {str(s.long_silence_present):>8}  "
             f"{str(n.background_noise_present):>6}  {n.background_noise_type:<12}  "
             f"{n.background_noise_severity:<7}"
         )
-        print(f"{'':<{name_w}}  emotion A/V/D: {e.arousal}/{e.valence}/{e.dominance}  "
-              f"(tone is acoustic-only, provisional -> fused with transcript in 5b)")
+        print(
+            f"{'':<{name_w}}  emotion[{fused.source} conf={fused.confidence}]: "
+            f"acoustic tone={e.emotional_tone} (A/V {e.arousal}/{e.valence}) "
+            f"-> fused={fused.emotional_tone} | {fused.rationale}"
+        )
+        print(f"{'':<{name_w}}  transcript: \"{tr.text[:120]}\"")
     return 0
 
 
