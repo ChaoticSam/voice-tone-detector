@@ -38,7 +38,7 @@ def test_noise_labels_not_excluded(label: str):
 
 
 def test_noise_type_mapping_and_fallback():
-    assert noise_type_for("Television") == "television"
+    assert noise_type_for("Television") == "TV"
     assert noise_type_for("Computer keyboard") == "keyboard typing"
     assert noise_type_for("Hubbub, speech noise, speech babble") == "office chatter"
     # Uncurated label falls back to a lowercased string, not a crash / drop.

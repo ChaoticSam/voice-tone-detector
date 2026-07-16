@@ -42,7 +42,7 @@ EXCLUDED_LABELS: frozenset[str] = SPEECH_LABELS | NON_NOISE_LABELS | TELEPHONY_L
 # Curated AudioSet label -> concise noise_type string (spec-aligned vocabulary).
 NOISE_ALIASES: dict[str, str] = {
     # Media
-    "Television": "television",
+    "Television": "TV",
     "Radio": "radio",
     "Music": "music",
     # Chatter / crowd
