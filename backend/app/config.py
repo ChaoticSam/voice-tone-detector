@@ -21,7 +21,18 @@ SILENCE_FRAME_MS = 25          # analysis frame length
 SILENCE_DROP_DB = 35.0
 SILENCE_ACTIVE_PERCENTILE = 95  # percentile of frame RMS taken as the "active" level
 # Longest silent run at/above this length flips long_silence_present to true.
-LONG_SILENCE_SEC = 3.0
+#
+# Calibrated against docs/labels.csv (all 3 real calls, all long_silence_present=false):
+#   call_001 longest run 2.90s, call_002 3.18s (near-start "connecting" gap, not a
+#   mid-call problem), call_003 7.33s (a quiet-but-not-silent stretch -- the "sharp
+#   static" background noise persists at low level, so a human wouldn't call it dead
+#   air even though relative energy drops ~50-70dB below the active level).
+# At the old value (3.0s) both call_002 and call_003 were false positives. Any value
+# in (7.33, ...] reproduces all 3 labels; 10.0 gives headroom above the boundary
+# rather than snapping to it. CAVEAT: all 3 labeled examples are negative for this
+# field, so this only bounds the threshold from below -- we have no positive example
+# to validate sensitivity, and this should be revisited once positive examples exist.
+LONG_SILENCE_SEC = 10.0
 
 
 # --- Audio quality (clear | slightly_impaired | severely_impaired) -----------

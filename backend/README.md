@@ -87,6 +87,17 @@ Model-free, deterministic services that consume the preprocessed package:
   (relative to each file's own active level, so quiet calls work). A VAD is intentionally
   not used here; Silero is introduced later for true speech regions (overlap/speaking-rate).
 
+### Calibration against `docs/labels.csv`
+
+Both fields were checked against the 3 real labeled calls (`tests/test_calibration.py`,
+skipped if `docs/labels.csv` is absent — it's gitignored as confidential). `audio_quality`
+matched 3/3 out of the box. `long_silence_present` initially had 2/3 false positives at a
+3.0s threshold: one was a near-start "call connecting" gap, the other a quiet-but-not-silent
+stretch where low-level background noise persists. Raising `LONG_SILENCE_SEC` to 10.0s (see
+`app/config.py` for the full rationale) fixes both without any other threshold change.
+**Caveat:** all 3 labeled calls are negative for this field, so calibration only bounds the
+threshold from below — there's no positive example to validate sensitivity against.
+
 ```bash
 # CLI — runs both services (preprocess -> quality + silence)
 PYTHONPATH=. python -m app.analysis ../audio_files/*.ogg

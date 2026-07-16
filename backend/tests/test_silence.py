@@ -38,17 +38,19 @@ def test_longest_run():
 # --- silence detection --------------------------------------------------------
 
 def test_detects_long_gap():
-    sig = np.concatenate([_noise(1, 0.3), _noise(4, 0.0001), _noise(1, 0.3)])
+    # Gap exceeds LONG_SILENCE_SEC (10s, calibrated against docs/labels.csv).
+    sig = np.concatenate([_noise(1, 0.3), _noise(12, 0.0001), _noise(1, 0.3)])
     r = detect_silence(sig, SR)
     assert r.long_silence_present is True
-    assert r.longest_silence_sec == pytest.approx(4.0, abs=0.15)
+    assert r.longest_silence_sec == pytest.approx(12.0, abs=0.15)
 
 
 def test_short_gap_not_flagged():
-    sig = np.concatenate([_noise(1, 0.3), _noise(1, 0.0001), _noise(1, 0.3)])
+    # A multi-second gap that stays below the calibrated 10s threshold.
+    sig = np.concatenate([_noise(1, 0.3), _noise(5, 0.0001), _noise(1, 0.3)])
     r = detect_silence(sig, SR)
     assert r.long_silence_present is False
-    assert r.longest_silence_sec == pytest.approx(1.0, abs=0.15)
+    assert r.longest_silence_sec == pytest.approx(5.0, abs=0.15)
 
 
 def test_constant_noise_not_flagged():
@@ -60,7 +62,7 @@ def test_constant_noise_not_flagged():
 
 
 def test_all_silence():
-    sig = np.zeros(int(5 * SR), dtype=np.float32)
+    sig = np.zeros(int(12 * SR), dtype=np.float32)
     r = detect_silence(sig, SR)
     assert r.long_silence_present is True
     assert r.silence_ratio == 1.0
@@ -69,6 +71,6 @@ def test_all_silence():
 def test_quiet_call_uses_adaptive_threshold():
     # A quiet recording (low absolute level) with a gap should still be detected,
     # because the threshold is relative to the file's own active level.
-    sig = np.concatenate([_noise(1, 0.01), _noise(4, 0.00001), _noise(1, 0.01)])
+    sig = np.concatenate([_noise(1, 0.01), _noise(12, 0.00001), _noise(1, 0.01)])
     r = detect_silence(sig, SR)
     assert r.long_silence_present is True
