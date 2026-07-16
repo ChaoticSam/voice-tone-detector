@@ -1,0 +1,14 @@
+# --- Confidential trial material: never publish (see trial §5 data handling) ---
+audio_files/
+docs/
+
+# --- Python ---
+backend/.venv/
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# --- OS / editor ---
+.DS_Store
+.localized
