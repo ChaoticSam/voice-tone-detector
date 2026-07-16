@@ -3,5 +3,9 @@ numpy>=1.26
 soxr>=0.3
 pydantic>=2.5
 
+# ML: background noise (AST / AudioSet); reused by later model stages
+torch>=2.2
+transformers>=4.40
+
 # dev
 pytest>=8.0

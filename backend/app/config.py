@@ -51,3 +51,23 @@ VOL_SEVERE_DBFS = -45.0
 # Percentiles for the rough SNR estimate (active vs noise-floor frame energy).
 SNR_NOISE_PERCENTILE = 10
 SNR_ACTIVE_PERCENTILE = 90
+
+
+# --- Background noise detection (AST / AudioSet) -----------------------------
+# Audio Spectrogram Transformer fine-tuned on AudioSet (BSD-3, native transformers).
+AST_MODEL_NAME = "MIT/ast-finetuned-audioset-10-10-0.4593"
+# AST is a fixed-length-input model trained on ~10s clips; long calls are chunked to
+# this window and class probabilities are max-aggregated across windows (a noise event
+# in even one window should register rather than being averaged away).
+NOISE_WINDOW_SEC = 10.0
+# Top non-speech (and non-telephony) class probability at/above which noise is present.
+# Calibrated against docs/labels.csv after excluding telephony artifacts:
+#   call_001 (no noise) top ~0.072 | call_002 (TV) 0.149 | call_003 (static) 0.203.
+# 0.10 separates the negative from both positives with margin on each side.
+NOISE_PRESENT_THRESHOLD = 0.10
+# Severity bands on the top noise-class probability. CAVEAT: only 2 positive examples,
+# both labelled "medium" (TV=0.149, static=0.203), so this is fit to 2 same-class points
+# and is the least reliable field -- severity really tracks noise loudness, which the
+# classifier probability only loosely proxies. Revisit with more labeled data.
+NOISE_SEVERITY_MEDIUM_PROB = 0.13
+NOISE_SEVERITY_HIGH_PROB = 0.45
