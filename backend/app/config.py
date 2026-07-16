@@ -51,3 +51,44 @@ VOL_SEVERE_DBFS = -45.0
 # Percentiles for the rough SNR estimate (active vs noise-floor frame energy).
 SNR_NOISE_PERCENTILE = 10
 SNR_ACTIVE_PERCENTILE = 90
+
+
+# --- Background noise detection (AST / AudioSet) -----------------------------
+# Audio Spectrogram Transformer fine-tuned on AudioSet (BSD-3, native transformers).
+AST_MODEL_NAME = "MIT/ast-finetuned-audioset-10-10-0.4593"
+# AST is a fixed-length-input model trained on ~10s clips; long calls are chunked to
+# this window and class probabilities are max-aggregated across windows (a noise event
+# in even one window should register rather than being averaged away).
+NOISE_WINDOW_SEC = 10.0
+# Top non-speech (and non-telephony) class probability at/above which noise is present.
+# Calibrated against docs/labels.csv after excluding telephony artifacts:
+#   call_001 (no noise) top ~0.072 | call_002 (TV) 0.149 | call_003 (static) 0.203.
+# 0.10 separates the negative from both positives with margin on each side.
+NOISE_PRESENT_THRESHOLD = 0.10
+# Severity bands on the top noise-class probability. CAVEAT: only 2 positive examples,
+# both labelled "medium" (TV=0.149, static=0.203), so this is fit to 2 same-class points
+# and is the least reliable field -- severity really tracks noise loudness, which the
+# classifier probability only loosely proxies. Revisit with more labeled data.
+NOISE_SEVERITY_MEDIUM_PROB = 0.13
+NOISE_SEVERITY_HIGH_PROB = 0.45
+
+
+# --- DSP static / broadband-noise detector (hybrid with AST) -----------------
+# AST is an event classifier and misses additive broadband noise (hiss/static/crackle),
+# which is a signal-level phenomenon best caught with DSP -- analogous to clipping/silence.
+# Static shows up as a flat (broadband) noise floor + impulsive crackle bursts.
+# Thresholds separate the real files: SFM(0-8k) of the noise floor was
+#   call_001 (clean) 0.020 | call_002 (TV) 0.031 | call_003 (static) 0.055.
+# Validated on ONE positive example (call_003) -- principled features, but revisit with
+# more static-labeled data before trusting the exact thresholds.
+STATIC_FRAME_MS = 50
+STATIC_ACTIVE_PERCENTILE = 95
+STATIC_FLOOR_LO_FRAC = 0.005     # noise-floor frames: quiet but not digital silence
+STATIC_FLOOR_HI_FRAC = 0.05
+STATIC_MIN_FLOOR_FRAMES = 10     # need enough floor frames to judge
+STATIC_SFM_BAND_HZ = 8000        # measure flatness in the meaningful band, not empty HF
+STATIC_SFM_THRESHOLD = 0.04      # noise-floor flatness above this => broadband static
+STATIC_SEVERITY_MEDIUM_SFM = 0.045
+STATIC_SEVERITY_HIGH_SFM = 0.10
+# An AST discrete event this strong overrides a static finding for the reported type.
+STATIC_STRONG_EVENT_PROB = 0.30
