@@ -21,11 +21,6 @@ NON_NOISE_LABELS: frozenset[str] = frozenset({
     "Inside, public space",
 })
 
-# Telephony / call-line signalling: INTRINSIC to phone-call audio, not background noise.
-# Empirically these dominate the AST output on real calls (Sidetone/Dial tone ~0.7 on our
-# samples) and would otherwise flag every call as "noise". Sidetone is the caller's own
-# voice fed back into the earpiece; dial/busy/ringtone are line signals; "Telephone" is the
-# medium itself. Excluded exactly like speech so the real background noise surfaces.
 TELEPHONY_LABELS: frozenset[str] = frozenset({
     "Telephone",
     "Telephone bell ringing",

@@ -11,14 +11,6 @@ ones that are reliably measurable with cheap DSP and deliberately do NOT guess a
 
 Final quality = the worst-case across these signals. Each contributing signal is recorded
 in ``reasons`` for debuggability / the feature store.
-
-Deliberately NOT used as an impairment trigger: high-frequency roll-off. Production call
-audio is routinely band-limited (~3.4 kHz telephony), so a low high-frequency ratio is
-normal, not a defect — penalizing it would mislabel clean phone calls. We still report
-``spectral_centroid_hz`` as a diagnostic.
-
-NOTE: thresholds are principled but UNCALIBRATED — no ground-truth labels available yet.
-Measured on the ORIGINAL-rate signal so band-limiting / high-freq artifacts remain visible.
 """
 
 from __future__ import annotations

@@ -2,17 +2,34 @@ soundfile>=0.12
 numpy>=1.26
 soxr>=0.3
 pydantic>=2.5
+email-validator>=2.0
 
 # ML: background noise (AST / AudioSet); reused by later model stages
 torch>=2.2
 transformers>=4.40
 
-# Transcription + diarization (self-hosted) + lexical-fusion LLM (emotion 5b, diarization 6)
-# WhisperX bundles faster-whisper + word alignment + pyannote diarization.
+# Diarization (self-hosted): WhisperX bundles faster-whisper + word alignment + pyannote
+# diarization; ASR runs only internally for role assignment, no LLM/transcript downstream.
 faster-whisper>=1.0
 whisperx>=3.1
-openai>=1.40
 python-dotenv>=1.0
+
+# Job queue (batch uploads survive client disconnects; bounded worker concurrency)
+redis>=5.0
+rq>=1.16
+
+# Web API + Postgres (direct connection, backend-only) + our own auth (users/sessions
+# tables, bcrypt-hashed passwords, opaque session tokens -- see app/auth.py, app/db.py; no
+# Supabase Auth). Audio never touches Postgres, only derived JSON results and auth data.
+fastapi>=0.115
+uvicorn[standard]>=0.30
+python-multipart>=0.0.9
+psycopg2-binary>=2.9
+bcrypt>=4.0
 
 # dev
 pytest>=8.0
+
+# eval only (fetching a benchmark dataset for precision/accuracy/F1 measurement; not a
+# pipeline runtime dependency)
+datasets>=2.19

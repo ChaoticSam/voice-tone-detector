@@ -11,12 +11,7 @@ dead-air detection rather than a VAD:
   * a frame below the threshold is "silent"; the longest consecutive silent run is the
     longest dead-air stretch
 
-A call with constant background noise (office chatter) never drops to dead air, so it is
-correctly *not* flagged — which is what we want for a call-flow/audio-problem signal.
-
-Measured on the ORIGINAL-rate signal (evidence preserved; no trimming upstream).
-A proper VAD (Silero) is introduced later where true speech regions are needed
-(speaker overlap, speaking rate) — deliberately not here.
+A call with constant background noise (office chatter) never drops to dead air, so it is correctly *not* flagged — which is what we want for a call-flow/audio-problem signal.
 """
 
 from __future__ import annotations

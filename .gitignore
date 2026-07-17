@@ -1,6 +1,7 @@
 # --- Confidential trial material: never publish (see trial §5 data handling) ---
 audio_files/
-docs/
+docs/voice_tone_background_noise_dashboard_trial.pdf
+docs/labels.csv
 
 # --- Secrets: never commit API keys ---
 .env
@@ -14,11 +15,9 @@ __pycache__/
 *.pyc
 .pytest_cache/
 
+# --- Runtime data: uploaded audio, confidential -- never publish (see trial §5) ---
+backend/uploads/
+
 # --- OS / editor ---
 .DS_Store
 .localized
-
-# --- Secrets: never commit API keys ---
-.env
-*.env
-backend/.env

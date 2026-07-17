@@ -1,13 +1,14 @@
-"""Emotion — acoustic channel (stage 5a): the "how it was said" signal.
+"""Emotion — dimensional acoustic channel: the "how it was said" signal.
 
-Uses a dimensional SER model (arousal / valence / dominance) to produce a PROVISIONAL
-`emotional_tone` + `emotional_intensity`, plus the full dimensional evidence. This is
-deliberately only half of emotion: the lexical channel (stage 5b: transcript + LLM) fuses
-with this to catch cases the voice alone misses (e.g. "I've called five times already" said
-calmly = frustrated). Hence the result exposes raw arousal/valence/dominance so 5b can
-FUSE rather than override blindly.
+Uses a dimensional SER model (arousal / valence / dominance). We tried fusing this with an
+LLM reading the transcript (lexical channel); the LLM lost to a categorical SER model on
+tone (see emotion_categorical.py) and was dropped -- see emotion_pipeline.py. This module's
+role in the final pipeline: `arousal` (on the WHOLE call) is the sole source of
+`emotional_intensity`; `map_dimensions`/`emotional_tone` here are provisional/reference only
+(valence was weak/anti-correlated on the real calls -- tone is now decided by the
+categorical model).
 
-Mapping rationale:
+Mapping rationale (for the provisional tone/intensity this module still computes):
   * intensity  = arousal bands (this is the only source of emotional_intensity).
   * tone       = valence decides positive/neutral/negative; within negative, arousal
                  separates frustrated (lower) < upset (higher) < distressed (highest).
@@ -85,12 +86,33 @@ def _infer(model, processor, chunk: np.ndarray, sr: int) -> tuple[float, float, 
     return arousal, valence, dominance
 
 
-def detect_emotion(pre: Preprocessed) -> AcousticEmotionResult:
-    """Acoustic emotion for a preprocessed clip (provisional; fused with lexical in 5b)."""
+def build_customer_waveform(pre: Preprocessed, ranges: list[tuple[float, float]]) -> np.ndarray:
+    """Concatenate the customer's turn time-ranges into a single 16 kHz waveform.
+
+    Used to run the acoustic emotion model on the CUSTOMER only (the AI agent's flat TTS
+    voice otherwise dilutes the read). Falls back to the whole clip if ranges are empty.
+    """
+    if not ranges:
+        return pre.waveform_16k
+    sr = pre.sample_rate
+    segs = [pre.waveform_16k[int(s * sr):int(e * sr)] for s, e in ranges]
+    segs = [x for x in segs if x.size]
+    return np.concatenate(segs) if segs else pre.waveform_16k
+
+
+def detect_emotion(
+    pre: Preprocessed, waveform: np.ndarray | None = None
+) -> AcousticEmotionResult:
+    """Acoustic emotion for a clip (provisional; fused with lexical later).
+
+    Pass ``waveform`` to analyse a specific signal (e.g. the customer-only waveform from
+    ``build_customer_waveform``) instead of the whole preprocessed clip.
+    """
     model, processor = load_dimensional_emotion(EMOTION_MODEL_NAME)
+    wave = pre.waveform_16k if waveform is None else waveform
 
     hop = EMOTION_WINDOW_SEC * (1.0 - EMOTION_WINDOW_OVERLAP)
-    chunks = chunk_waveform(pre.waveform_16k, pre.sample_rate, EMOTION_WINDOW_SEC, hop_sec=hop)
+    chunks = chunk_waveform(wave, pre.sample_rate, EMOTION_WINDOW_SEC, hop_sec=hop)
 
     rows: list[tuple[float, float, float, float]] = []  # (arousal, valence, dominance, weight)
     for chunk in chunks:
@@ -100,8 +122,8 @@ def detect_emotion(pre: Preprocessed) -> AcousticEmotionResult:
         a, v, d = _infer(model, processor, chunk, pre.sample_rate)
         rows.append((a, v, d, rms))
 
-    if not rows:  # entire clip near-silent — analyse it whole
-        a, v, d = _infer(model, processor, pre.waveform_16k, pre.sample_rate)
+    if not rows:  # entire signal near-silent — analyse it whole
+        a, v, d = _infer(model, processor, wave, pre.sample_rate)
         rows = [(a, v, d, 1.0)]
 
     arr = np.array(rows)

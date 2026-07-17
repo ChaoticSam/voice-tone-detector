@@ -1,0 +1,4 @@
+filename,emotional_tone,emotional_intensity,background_noise_present,background_noise_type,background_noise_severity,audio_quality,speaker_overlap_present,long_silence_present,confidence
+call_001.ogg,upset,high,False,,none,clear,False,False,0.825
+call_002.ogg,neutral,medium,True,TV,medium,clear,True,False,0.732
+call_003.ogg,satisfied,medium,True,static,medium,clear,True,False,0.577
