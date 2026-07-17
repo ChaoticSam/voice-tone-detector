@@ -12,9 +12,6 @@ Approach:
   4. Exclude speech / non-noise classes so the primary speaker is never counted as noise.
   5. Rank the remainder; the top class drives present / type / severity.
 
-The spec caveat "do not infer background noise solely from poor audio quality" is honoured
-structurally: this decision comes from acoustic event classification, independent of the
-audio_quality DSP path.
 """
 
 from __future__ import annotations
