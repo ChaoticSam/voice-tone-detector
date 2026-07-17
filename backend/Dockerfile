@@ -11,13 +11,17 @@ WORKDIR /app
 # Dependencies layer cached separately from source so code changes don't force a full
 # torch/transformers/whisperx reinstall.
 COPY requirements.txt .
-# CPU-only torch build first: the default PyPI wheel bundles the full CUDA runtime
-# (nvidia-*-cu12 packages, several GB) which is dead weight on a GPU-less instance and was
-# blowing past the disk budget. Installing this first satisfies requirements.txt's
-# `torch>=2.2` so the later `-r requirements.txt` install leaves it alone rather than
-# pulling the CUDA build back in.
-RUN pip install --no-cache-dir torch torchaudio --index-url https://download.pytorch.org/whl/cpu \
-    && pip install --no-cache-dir -r requirements.txt
+# CPU-only torch build: the default PyPI wheel bundles the full CUDA runtime (nvidia-*-cu12
+# packages, several GB) which is dead weight on a GPU-less instance and exhausted the disk
+# during an earlier attempt. --index-url (not a separate install step) makes the CPU
+# wheelhouse primary for THIS WHOLE install -- installing torch as a one-off first didn't
+# stick, because whisperx/pyannote pin a specific torch version and pip re-resolved it from
+# the default (CUDA) index when processing the rest of requirements.txt. --extra-index-url
+# lets everything else still come from regular PyPI.
+RUN pip install --no-cache-dir \
+      --index-url https://download.pytorch.org/whl/cpu \
+      --extra-index-url https://pypi.org/simple \
+      -r requirements.txt
 
 COPY . .
 
