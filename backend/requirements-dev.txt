@@ -1,0 +1,5 @@
+# Dev/eval only -- not needed to run the pipeline in production; kept out of the Docker
+# image to keep it lean (datasets pulls in pyarrow and friends).
+-r requirements.txt
+pytest>=8.0
+datasets>=2.19
