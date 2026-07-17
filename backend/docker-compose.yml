@@ -7,11 +7,26 @@ services:
     # No published port -- only api/worker (on the compose network) need to reach it;
     # Redis has no auth by default, so it must never be exposed to the internet.
 
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - api
+
   api:
     build: .
     restart: unless-stopped
     ports:
       - "8000:8000"
+    # Still published directly too (unauthenticated HTTP) -- fine for now while testing;
+    # tighten to internal-only once HTTPS-via-Caddy is confirmed working end-to-end.
     env_file: .env
     environment:
       REDIS_URL: redis://redis:6379/0
@@ -45,3 +60,6 @@ volumes:
                 # api saved.
   hf_cache:     # model weights persist across restarts -- avoids re-downloading gigabytes
                 # (WhisperX, pyannote, the two SER models, AST) every time a container starts.
+  caddy_data:   # Let's Encrypt cert + key -- must persist, or every restart re-issues a
+                # cert and can hit Let's Encrypt's rate limits.
+  caddy_config:
