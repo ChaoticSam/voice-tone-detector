@@ -4,7 +4,7 @@ Thresholds and constants live here so every stage (validation, preprocessing,
 analysis) reads from one source of truth.
 """
 
-# Load secrets (e.g. OPENAI_API_KEY) from backend/.env if present. .env is gitignored;
+# Load secrets (HF_TOKEN, OPENAI_API_KEY) from backend/.env if present. .env is gitignored;
 # never commit it. No-op if python-dotenv or the file is absent.
 try:
     from dotenv import load_dotenv as _load_dotenv
@@ -133,16 +133,30 @@ AROUSAL_UPSET = 0.60
 AROUSAL_DISTRESSED = 0.75
 
 
-# --- Emotion: lexical channel + fusion (stage 5b) ----------------------------
-# Transcription: self-hosted faster-whisper. Audio never leaves local infra.
-# `small` int8 is the cost/quality sweet spot; the transcript is a fusion feature,
-# not a scored output, so "good enough to read intent" suffices.
-WHISPER_MODEL_SIZE = "large-v3"
+# --- Transcription (shared: WhisperX diarization + faster-whisper lexical) ----
+# Self-hosted; audio never leaves local infra. `small` int8 is the cost/quality sweet
+# spot (we settled on it over large-v3 for cost/latency; the transcript is a feature for
+# fusion, not a scored output). HF_TOKEN (.env) gates WhisperX's pyannote diarization.
+WHISPER_MODEL_SIZE = "small"
 WHISPER_COMPUTE_TYPE = "int8"
 
+# --- Speaker diarization + overlap (stage 6, WhisperX + pyannote) -------------
+# AI-receptionist calls are 2-party (bot + one caller); hint the diarizer to avoid
+# over-segmenting the bot into multiple speakers. Set None for fully automatic.
+DIARIZATION_MAX_SPEAKERS = 2
+# A single cross-speaker overlap must exceed this (s) to count toward the total.
+DIARIZATION_OVERLAP_TOLERANCE_SEC = 0.2
+# speaker_overlap_present requires total overlap >= this. The spec says overlap must be
+# "enough to affect understanding" -- brief boundary blips (~0.3s) don't qualify.
+# Calibrated to the 3 labels: call_001 0.35s (False), call_002 0.98s, call_003 2.35s (True).
+DIARIZATION_MIN_OVERLAP_SEC = 0.5
+# Turns shorter than this (s) are ignored for role assignment / overlap (diarizer noise).
+DIARIZATION_MIN_TURN_SEC = 0.3
+
+# --- Emotion: lexical channel + fusion (stage 5b) ----------------------------
 # Lexical-fusion LLM. Provider abstraction (see llm_client.py) — one-line swap.
-# gpt-4o-mini: ~$0.15/$0.60 per 1M -> ~$0.00017/audio-min. The transcript (derived
-# text) leaves our infra to the provider -> DISCLOSE per trial §11.
+# gpt-4.1-mini: ~$0.40/$1.60 per 1M. The transcript (derived text) leaves our infra to
+# the provider -> DISCLOSE per trial §11.
 LLM_PROVIDER = "openai"
 LLM_MODEL = "gpt-4.1-mini"
 # Confidence when the LLM call fails / no API key: fall back to the acoustic verdict.
