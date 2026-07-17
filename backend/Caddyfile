@@ -1,0 +1,7 @@
+# sslip.io resolves "3-236-213-144.sslip.io" to 3.236.213.144 automatically -- a free way
+# to get a real, publicly-resolvable hostname (which Let's Encrypt requires for a cert)
+# without owning a domain. If the instance's public IP ever changes (e.g. after a stop/
+# start without an Elastic IP), this hostname must be updated to match.
+3-236-213-144.sslip.io {
+    reverse_proxy api:8000
+}
