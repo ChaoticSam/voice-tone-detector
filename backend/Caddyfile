@@ -1,7 +1,8 @@
-# sslip.io resolves "3-236-213-144.sslip.io" to 3.236.213.144 automatically -- a free way
-# to get a real, publicly-resolvable hostname (which Let's Encrypt requires for a cert)
-# without owning a domain. If the instance's public IP ever changes (e.g. after a stop/
-# start without an Elastic IP), this hostname must be updated to match.
-3-236-213-144.sslip.io {
+# sslip.io resolves "3-232-58-53.sslip.io" to 3.232.58.53 automatically -- a free way to
+# get a real, publicly-resolvable hostname (which Let's Encrypt requires for a cert)
+# without owning a domain. This IP is now an Elastic IP (allocated + associated so it
+# survives instance stop/start, e.g. for an instance-type change) -- it should no longer
+# change on its own, but if the EIP is ever released/reassigned, update this to match.
+3-232-58-53.sslip.io {
     reverse_proxy api:8000
 }
